@@ -80,7 +80,7 @@ def experiment():
     for wp in wind_proportions:
         plot = LearningCurvePlot(f"Prioritized sweeping Learning Curves (wind_proportion={wp})")
         plot.add_curve(eval_timesteps, smooth(q_learning_baseline[wp], smoothing_window), label="q_learning")
-        for n_pu in [0] + n_planning_updates:
+        for n_pu in n_planning_updates:
             eval_returns = run_repetitions(n_repetitions, n_timesteps, eval_interval, epsilon, learning_rate, gamma,
                                            policy, n_planning_updates=n_pu, wind_proportion=wp)
             plot.add_curve(eval_timesteps, smooth(eval_returns, smoothing_window), label=f"n_planning_updates = {n_pu}")
