@@ -12,7 +12,7 @@ from MBRLAgents import DynaAgent, PrioritizedSweepingAgent
 from Helper import LearningCurvePlot, smooth
 
 
-def run_repetitions(n_repetitions, n_timesteps, eval_interval, policy, epsilon, learning_rate, gamma,
+def run_repetitions(n_repetitions, n_timesteps, eval_interval, epsilon, learning_rate, gamma, policy,
                     n_planning_updates, wind_proportion):
     print("Running repetitions with the following settings:")
     print(locals())
@@ -62,21 +62,27 @@ def experiment():
     smoothing_window = 6
     eval_timesteps = [i*eval_interval for i in range(n_timesteps // eval_interval + 1)]
 
+    q_learning_baseline = {
+        wp: run_repetitions(n_repetitions, n_timesteps, eval_interval, epsilon, learning_rate,
+                            gamma, policy='dyna', n_planning_updates=0, wind_proportion=wp) for wp in wind_proportions}
+
     policy = 'dyna'
     for wp in wind_proportions:
         plot = LearningCurvePlot(f"Dyna Learning Curves (wind_proportion={wp})")
-        for n_pu in [0] + n_planning_updates:
-            eval_returns = run_repetitions(n_repetitions, n_timesteps, eval_interval, policy,
-                                           epsilon, learning_rate, gamma, n_planning_updates=n_pu, wind_proportion=wp)
+        plot.add_curve(eval_timesteps, smooth(q_learning_baseline[wp], smoothing_window), label="q_learning")
+        for n_pu in n_planning_updates:
+            eval_returns = run_repetitions(n_repetitions, n_timesteps, eval_interval, epsilon, learning_rate, gamma,
+                                           policy, n_planning_updates=n_pu, wind_proportion=wp)
             plot.add_curve(eval_timesteps, smooth(eval_returns, smoothing_window), label=f"n_planning_updates = {n_pu}")
         plot.save(name=f"dyna_wp_{wp}.png")
 
     policy = 'ps'
     for wp in wind_proportions:
         plot = LearningCurvePlot(f"Prioritized sweeping Learning Curves (wind_proportion={wp})")
+        plot.add_curve(eval_timesteps, smooth(q_learning_baseline[wp], smoothing_window), label="q_learning")
         for n_pu in [0] + n_planning_updates:
-            eval_returns = run_repetitions(n_repetitions, n_timesteps, eval_interval, policy,
-                                           epsilon, learning_rate, gamma, n_planning_updates=n_pu, wind_proportion=wp)
+            eval_returns = run_repetitions(n_repetitions, n_timesteps, eval_interval, epsilon, learning_rate, gamma,
+                                           policy, n_planning_updates=n_pu, wind_proportion=wp)
             plot.add_curve(eval_timesteps, smooth(eval_returns, smoothing_window), label=f"n_planning_updates = {n_pu}")
         plot.save(name=f"ps_wp_{wp}.png")
 
