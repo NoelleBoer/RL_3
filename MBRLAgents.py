@@ -116,7 +116,7 @@ class PrioritizedSweepingAgent:
             self.queue.put((-p, (s, a)))
 
         for _ in range(n_planning_updates):
-            # Sample PG, bream when empty
+            # Sample PG, break when empty
             if self.queue.empty():
                 break
             _, (s, a) = self.queue.get()
