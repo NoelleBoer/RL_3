@@ -62,7 +62,7 @@ def experiment(dyna=True, ps=True, comp=True):
 
     # List of evaluation timesteps to use on the x axis of the plots
     eval_timesteps = [i*eval_interval for i in range(n_timesteps // eval_interval + 1)]
-    smoothing_window = 7
+    smoothing_window = 5
 
     # Run the Q-Learning baseline for both wind proportions
     q_learning_baseline = {
@@ -117,8 +117,8 @@ def experiment(dyna=True, ps=True, comp=True):
             # Add the Q-Learning baseline curve
             plot.add_curve(eval_timesteps, smooth(q_learning_baseline[wp], smoothing_window), label="q_learning")
 
-            best_dyna_auc = 0
-            best_dyna = (None, [])
+            best_dyna_auc = -np.inf
+            best_dyna = None
             # Find the best performing model using the area under the learning curve
             for n_pu, eval_return in dyna_eval_returns[wp].items():
                 auc = np.trapz(eval_return)
@@ -128,8 +128,8 @@ def experiment(dyna=True, ps=True, comp=True):
             plot.add_curve(eval_timesteps, smooth(best_dyna[1], smoothing_window),
                            label=f"Dyna (n_planning_updates = {best_dyna[0]})")
 
-            best_ps_auc = 0
-            best_ps = (None, [])
+            best_ps_auc = -np.inf
+            best_ps = None
             # Find the best performing model using the area under the learning curve
             for n_pu, eval_return in ps_eval_returns[wp].items():
                 auc = np.trapz(eval_return)
