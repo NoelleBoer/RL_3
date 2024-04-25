@@ -18,11 +18,12 @@ class DynaAgent:
         self.n_actions = n_actions
         self.learning_rate = learning_rate
         self.gamma = gamma
-        self.Q_sa = np.zeros((n_states, n_actions))
-        self.n_counts = np.zeros((n_states, n_actions, n_states))
-        self.r_sums = np.zeros((n_states, n_actions, n_states))
 
-    def select_action(self, s, epsilon):
+        self.Q_sa = np.zeros((n_states, n_actions))  # Initialize Q-table with zeros
+        self.n_counts = np.zeros((n_states, n_actions, n_states))  # Initialize transition counts with zeros
+        self.r_sums = np.zeros((n_states, n_actions, n_states))  # Initialize reward sums with zeros
+
+    def select_action(self, s, epsilon):  # ϵ-greedy policy
         best_action = np.argmax(self.Q_sa[s])
         if np.random.random() > epsilon:
             action = best_action
@@ -31,7 +32,7 @@ class DynaAgent:
         return action
 
     def update(self, s, a, r, done, s_next, n_planning_updates):
-        # TO DO: Add Dyna update
+        # Update model
         self.n_counts[s, a, s_next] += 1
         self.r_sums[s, a, s_next] += r
 
@@ -44,16 +45,16 @@ class DynaAgent:
         q_table_update(s, a, r, s_next)
 
         for _ in range(n_planning_updates):
+            # Find state with n(s) > 0
             n_s_candidates = np.argwhere(np.sum(self.n_counts, axis=(1, 2)) > 0).flatten()
             s = np.random.choice(n_s_candidates)
-
+            # Find action with n(s,a) > 0
             n_sa_candidates = np.argwhere(np.sum(self.n_counts[s], axis=1) > 0).flatten()
             a = np.random.choice(n_sa_candidates)
-
+            # Simulate model
             n_sa = self.n_counts[s][a]
             s_next_props = n_sa / np.sum(n_sa)
             s_next = np.random.choice(self.n_states, p=s_next_props)
-
             r = self.r_sums[s][a][s_next] / self.n_counts[s][a][s_next]
 
             q_table_update(s, a, r, s_next)
@@ -80,19 +81,19 @@ class DynaAgent:
 
 class PrioritizedSweepingAgent:
 
-    def __init__(self, n_states, n_actions, learning_rate, gamma, max_queue_size=200, priority_cutoff=0.01):
+    def __init__(self, n_states, n_actions, learning_rate, gamma, priority_cutoff=0.01):
         self.n_states = n_states
         self.n_actions = n_actions
         self.learning_rate = learning_rate
         self.gamma = gamma
         self.priority_cutoff = priority_cutoff
 
-        self.Q_sa = np.zeros((n_states, n_actions))
-        self.n_counts = np.zeros((n_states, n_actions, n_states))
-        self.r_sums = np.zeros((n_states, n_actions, n_states))
-        self.queue = PriorityQueue()
+        self.Q_sa = np.zeros((n_states, n_actions))  # Initialize Q-table with zeros
+        self.n_counts = np.zeros((n_states, n_actions, n_states))  # Initialize transition counts with zeros
+        self.r_sums = np.zeros((n_states, n_actions, n_states))  # Initialize reward sums with zeros
+        self.queue = PriorityQueue()  # Initialize PQ
 
-    def select_action(self, s, epsilon):
+    def select_action(self, s, epsilon):  # ϵ-greedy policy
         best_action = np.argmax(self.Q_sa[s])
         if np.random.random() > epsilon:
             action = best_action
@@ -101,45 +102,42 @@ class PrioritizedSweepingAgent:
         return action
 
     def update(self, s, a, r, done, s_next, n_planning_updates):
-
-        # TO DO: Add Prioritized Sweeping code
-
-        # Helper code to work with the queue
-        # Put (s,a) on the queue with priority p (needs a minus since the queue pops the smallest priority first)
-        # self.queue.put((-p,(s,a)))
-        # Retrieve the top (s,a) from the queue
-        # _,(s,a) = self.queue.get() # get the top (s,a) for the queue
+        # Update model
         self.n_counts[s, a, s_next] += 1
         self.r_sums[s, a, s_next] += r
-
+        # Compute priority
         a_next = np.argmax(self.Q_sa[s_next])
         td_target = r + self.gamma * self.Q_sa[s_next, a_next]
         p = np.abs(td_target - self.Q_sa[s, a])
         if p > self.priority_cutoff:
+            # State-action needs update
             self.queue.put((-p, (s, a)))
 
         for _ in range(n_planning_updates):
+            # Sample PG, bream when empty
             if self.queue.empty():
                 break
             _, (s, a) = self.queue.get()
-
+            # Simulate model
             n_sa = self.n_counts[s][a]
             s_next_props = n_sa / np.sum(n_sa)
             s_next = np.random.choice(self.n_states, p=s_next_props)
             r = self.r_sums[s][a][s_next] / self.n_counts[s][a][s_next]
-
+            # Update Q-table
             a_next = np.argmax(self.Q_sa[s_next])
             td_target = r + self.gamma * self.Q_sa[s_next, a_next]
             td_delta = td_target - self.Q_sa[s, a]
             self.Q_sa[s, a] += self.learning_rate * td_delta
 
             for s_top, a_top in np.argwhere(self.n_counts[:, :, s] > 0):
+                # Get reward from model
                 r_top = self.r_sums[s_top][a_top][s] / self.n_counts[s_top][a_top][s]
-
+                # Compute priority
                 a = np.argmax(self.Q_sa[s])
                 td_target = r_top + self.gamma * self.Q_sa[s, a]
                 p = np.abs(td_target - self.Q_sa[s_top, a_top])
                 if p > self.priority_cutoff:
+                    # State-action needs update
                     self.queue.put((-p, (s_top, a_top)))
 
         pass
@@ -175,7 +173,7 @@ def test():
 
     # Plotting parameters
     plot = True
-    plot_optimal_policy = False
+    plot_optimal_policy = True
     step_pause = 0.0001
 
     # Initialize environment and policy
